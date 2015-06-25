@@ -36,6 +36,12 @@ public interface RabbitMQSinkCounterMBean {
 
     long getRabbitMQConnectionExceptionCount();
 
+    long getCounterExceptionCount();
+
+    long getAckCount();
+
+    long getCounterRejectCount();
+
     long getStartTime();
 
     long getStopTime();

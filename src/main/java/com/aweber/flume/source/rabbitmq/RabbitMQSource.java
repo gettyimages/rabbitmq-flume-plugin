@@ -1,9 +1,9 @@
 package com.aweber.flume.source.rabbitmq;
 
+import com.aweber.flume.sink.rabbitmq.RabbitMQSinkCounter;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
 import org.apache.flume.Context;
-import org.apache.flume.CounterGroup;
 import org.apache.flume.EventDrivenSource;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.Configurables;
@@ -34,7 +34,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Even
     private static final String THREAD_COUNT_KEY = "threads";
     private SourceCounter sourceCounter;
     private ConnectionFactory factory;
-    private CounterGroup counterGroup;
+    private RabbitMQSinkCounter rabbitMQSinkCounter;
     private String hostname;
     private int port;
     private boolean enableSSL = false;
@@ -81,8 +81,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Even
 
         // Create and configure the counters
         sourceCounter = new SourceCounter(getName());
-        counterGroup = new CounterGroup();
-        counterGroup.setName(getName());
+        rabbitMQSinkCounter = new RabbitMQSinkCounter(getName());
     }
 
     @Override
@@ -102,7 +101,7 @@ public class RabbitMQSource extends AbstractSource implements Configurable, Even
                     .setAutoAck(autoAck)
                     .setChannelProcessor(getChannelProcessor())
                     .setSourceCounter(sourceCounter)
-                    .setCounterGroup(counterGroup);
+                    .setRabbitMQSinkCounter(rabbitMQSinkCounter);
             Thread thread = new Thread(consumer);
             thread.setName("RabbitMQ Consumer #" + String.valueOf(i));
             thread.start();

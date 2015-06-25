@@ -38,6 +38,10 @@ public class RabbitMQSinkCounter extends MonitoredCounterGroup implements Rabbit
     private static final String COUNTER_RABBITMQ_CONNECTED =        "sink.rabbitmq.connected";
     private static final String COUNTER_RABBITMQ_SSL_EXCEPTION =    "sink.rabbitmq.exception.ssl";
     private static final String COUNTER_RABBITMQ_CONNECTION_EXCEPTION = "sink.rabbitmq.exception.connection";
+    private static final String COUNTER_ACK = "rabbitmq.ack";
+    private static final String COUNTER_EXCEPTION = "rabbitmq.exception";
+    private static final String COUNTER_REJECT = "rabbitmq.reject";
+
 
     private static final String[] ATTRIBUTES = {
             COUNTER_CONNECTION_CREATED, COUNTER_CONNECTION_CLOSED,
@@ -211,5 +215,29 @@ public class RabbitMQSinkCounter extends MonitoredCounterGroup implements Rabbit
 
     public long incrementRabbitMQConnectionExceptionCount(){
         return increment(COUNTER_RABBITMQ_CONNECTION_EXCEPTION);
+    }
+
+    public long getAckCount(){
+        return get(COUNTER_ACK);
+    }
+
+    public long incrementAckCount(){
+        return increment(COUNTER_ACK);
+    }
+
+    public long getCounterExceptionCount(){
+        return get(COUNTER_EXCEPTION);
+    }
+
+    public long incrementCounterExceptionCount(){
+        return increment(COUNTER_EXCEPTION);
+    }
+
+    public long getCounterRejectCount(){
+        return get(COUNTER_REJECT);
+    }
+
+    public long incrementCounterRejectCount(){
+        return increment(COUNTER_REJECT);
     }
 }

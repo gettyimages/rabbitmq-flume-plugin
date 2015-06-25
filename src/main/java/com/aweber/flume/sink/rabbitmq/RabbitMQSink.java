@@ -47,22 +47,11 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     private static final String DEFAULT_EXCHANGE = "amq.topic";
     private static final String DEFAULT_ROUTING_KEY = "";
 
-    private static final String EVENT_EMPTY = "event.empty";
-    private static final String EVENT_RECEIVED = "event.empty";
-    private static final String EVENT_PUBLISHED = "event.empty";
-    private static final String EXCEPTION_CHANNEL = "exception.channel";
-    private static final String EXCEPTION_DELIVERY = "exception.delivery";
-    private static final String RABBITMQ_CLOSED = "rabbitmq.closed";
-    private static final String RABBITMQ_CONNECTED = "rabbitmq.connected";
-    private static final String RABBITMQ_EXCEPTION_SSL = "rabbitmq.exception.ssl";
-    private static final String RABBITMQ_EXCEPTION_CONNECTION = "rabbitmq.exception.connection";
-
     private String exchange;
     private String routingKey;
     private Boolean autoProperties;
     private Boolean mandatory;
     private Boolean publisherConfirms;
-    private CounterGroup counterGroup;
     private RabbitMQSinkCounter rabbitMQSinkCounter;
     private String hostname;
     private int port;
@@ -95,8 +84,6 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         autoProperties = context.getBoolean(AUTO_PROPERTIES_KEY, true);
         mandatory = context.getBoolean(MANDATORY_PUBLISH_KEY, false);
         publisherConfirms = context.getBoolean(PUBLISHER_CONFIRMS_KEY, false);
-        counterGroup = new CounterGroup();
-        counterGroup.setName(getName());
         rabbitMQSinkCounter = new RabbitMQSinkCounter(getName());
     }
 
@@ -112,25 +99,22 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
             Event event = getChannel().take();
 
             if (event == null) {
-                counterGroup.incrementAndGet(EVENT_EMPTY);
                 status = Status.BACKOFF;
             } else {
-                counterGroup.incrementAndGet(EVENT_RECEIVED);
                 rabbitMQSinkCounter.incrementReceivedMessageCount();
                 publishMessage(event);
-                counterGroup.incrementAndGet(EVENT_PUBLISHED);
                 rabbitMQSinkCounter.incrementMessagePublishedCount();
             }
             transaction.commit();
 
         } catch (ChannelException ex) {
-            counterGroup.incrementAndGet(EXCEPTION_CHANNEL);
+            rabbitMQSinkCounter.incrementChannelExceptionCount();
             transaction.rollback();
             status = Status.BACKOFF;
             logger.error("Unable to get event from channel. Exception follows.", ex);
 
         } catch (EventDeliveryException ex) {
-            counterGroup.incrementAndGet(EXCEPTION_DELIVERY);
+            rabbitMQSinkCounter.incrementDeliveryExceptionCount();
             transaction.rollback();
             status = Status.BACKOFF;
             logger.error("Delivery exception: {}", ex);
@@ -155,7 +139,6 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         if (connection != null) {
             closeRabbitMQConnection();
         }
-        logger.info("RabbitMQ sink {} stopped. Metrics: {}", this.getName(), counterGroup.getCounters());
         rabbitMQSinkCounter.stop();
         super.stop();
     }
@@ -178,7 +161,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         }
         rmqChannel = null;
         connection = null;
-        counterGroup.incrementAndGet(RABBITMQ_CLOSED);
+        rabbitMQSinkCounter.incrementRabbitMQClosedCount();
     }
 
     private Channel createRabbitMQChannel() throws EventDeliveryException {
@@ -192,7 +175,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
 
     private Connection createRabbitMQConnection(ConnectionFactory factory) throws EventDeliveryException {
         logger.debug("Connecting to RabbitMQ from {}", this.getName());
-        counterGroup.incrementAndGet(RABBITMQ_CONNECTED);
+        rabbitMQSinkCounter.incrementRabbitMQConnectedCount();
         factory.setHost(hostname);
         factory.setPort(port);
         factory.setVirtualHost(virtualHost);
@@ -202,11 +185,11 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
             try {
                 factory.useSslProtocol();
             } catch (NoSuchAlgorithmException ex) {
-                counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_SSL);
+                rabbitMQSinkCounter.incrementRabbitMQSslExceptionCount();
                 logger.error("Could not enable SSL: {}", ex.toString());
                 throw new EventDeliveryException("Could not Enable SSL: " + ex.toString());
             } catch (KeyManagementException ex) {
-                counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_SSL);
+                rabbitMQSinkCounter.incrementRabbitMQSslExceptionCount();
                 logger.error("Could not enable SSL: {}", ex.toString());
                 throw new EventDeliveryException("Could not Enable SSL: " + ex.toString());
             }
@@ -214,7 +197,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         try {
             return factory.newConnection();
         } catch (IOException ex) {
-            counterGroup.incrementAndGet(RABBITMQ_EXCEPTION_CONNECTION);
+            rabbitMQSinkCounter.incrementRabbitMQConnectionExceptionCount();
             throw new EventDeliveryException(ex.toString());
         }
     }
