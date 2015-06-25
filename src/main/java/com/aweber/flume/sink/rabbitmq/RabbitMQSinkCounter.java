@@ -54,6 +54,10 @@ public class RabbitMQSinkCounter extends MonitoredCounterGroup implements Rabbit
         return get(COUNTER_CHANNEL_EXCEPTION);
     }
 
+    public long incrementChannelExceptionCount(){
+        return increment(COUNTER_CHANNEL_EXCEPTION);
+    }
+
     public long getDeliveryExceptionCount(){
         return get(COUNTER_DELIVERY_EXCEPTION);
     }
