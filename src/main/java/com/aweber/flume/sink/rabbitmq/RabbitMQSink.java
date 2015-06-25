@@ -4,12 +4,7 @@ import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-import org.apache.flume.ChannelException;
-import org.apache.flume.Context;
-import org.apache.flume.CounterGroup;
-import org.apache.flume.Event;
-import org.apache.flume.EventDeliveryException;
-import org.apache.flume.Transaction;
+import org.apache.flume.*;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.sink.AbstractSink;
 import org.slf4j.Logger;
@@ -68,6 +63,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     private Boolean mandatory;
     private Boolean publisherConfirms;
     private CounterGroup counterGroup;
+    private RabbitMQSinkCounter rabbitMQSinkCounter;
     private String hostname;
     private int port;
     private boolean sslEnabled = false;
@@ -101,11 +97,11 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
         publisherConfirms = context.getBoolean(PUBLISHER_CONFIRMS_KEY, false);
         counterGroup = new CounterGroup();
         counterGroup.setName(getName());
+        rabbitMQSinkCounter = new RabbitMQSinkCounter(getName());
     }
 
     @Override
     public Status process() throws EventDeliveryException {
-
         maybeConnectToRabbitMQ();
 
         Status status = Status.READY;
@@ -120,9 +116,10 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
                 status = Status.BACKOFF;
             } else {
                 counterGroup.incrementAndGet(EVENT_RECEIVED);
+                rabbitMQSinkCounter.incrementReceivedMessageCount();
                 publishMessage(event);
                 counterGroup.incrementAndGet(EVENT_PUBLISHED);
-
+                rabbitMQSinkCounter.incrementMessagePublishedCount();
             }
             transaction.commit();
 
@@ -149,6 +146,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
     public synchronized void start() {
         logger.info("Starting RabbitMQ Sink {}", this.getName());
         super.start();
+        rabbitMQSinkCounter.start();
     }
 
     @Override
@@ -158,6 +156,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
             closeRabbitMQConnection();
         }
         logger.info("RabbitMQ sink {} stopped. Metrics: {}", this.getName(), counterGroup.getCounters());
+        rabbitMQSinkCounter.stop();
         super.stop();
     }
 
