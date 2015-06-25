@@ -1,5 +1,14 @@
 package com.aweber.flume.source.rabbitmq;
 
+import com.aweber.flume.sink.rabbitmq.RabbitMQSinkCounter;
+import com.rabbitmq.client.*;
+import org.apache.flume.Event;
+import org.apache.flume.channel.ChannelProcessor;
+import org.apache.flume.event.EventBuilder;
+import org.apache.flume.instrumentation.SourceCounter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -7,34 +16,15 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
-import com.rabbitmq.client.QueueingConsumer;
-
-import org.apache.flume.CounterGroup;
-import org.apache.flume.Event;
-import org.apache.flume.channel.ChannelProcessor;
-import org.apache.flume.event.EventBuilder;
-import org.apache.flume.instrumentation.SourceCounter;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class Consumer implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(Consumer.class);
-
-    private static final String COUNTER_ACK = "rabbitmq.ack";
-    private static final String COUNTER_EXCEPTION = "rabbitmq.exception";
-    private static final String COUNTER_REJECT = "rabbitmq.reject";
 
     volatile boolean shutdown = false;
     private Connection connection;
     private Channel channel;
     private ChannelProcessor channelProcessor;
-    private CounterGroup counterGroup;
+    private RabbitMQSinkCounter rabbitMQSinkCounter;
     private SourceCounter sourceCounter;
 
     private String hostname;
@@ -70,8 +60,8 @@ public class Consumer implements Runnable {
         return this;
     }
 
-    public Consumer setCounterGroup(CounterGroup counterGroup) {
-        this.counterGroup = counterGroup;
+    public Consumer setRabbitMQSinkCounter(RabbitMQSinkCounter rabbitMQSinkCounter){
+        this.rabbitMQSinkCounter = rabbitMQSinkCounter;
         return this;
     }
 
@@ -151,7 +141,7 @@ public class Consumer implements Runnable {
             channel.basicConsume(queue, autoAck, consumer);
         } catch (IOException ex) {
             logger.error("Error starting consumer: {}", ex);
-            counterGroup.incrementAndGet(COUNTER_EXCEPTION);
+            rabbitMQSinkCounter.incrementCounterExceptionCount();
             this.close();
             return;
         }
@@ -195,7 +185,7 @@ public class Consumer implements Runnable {
             channel.basicCancel(consumerTag);
         } catch (IOException ex) {
             logger.error("Error cancelling consumer for {}: {}", this, ex);
-            counterGroup.incrementAndGet(COUNTER_EXCEPTION);
+            rabbitMQSinkCounter.incrementCounterExceptionCount();
         }
     }
 
@@ -204,9 +194,9 @@ public class Consumer implements Runnable {
             channel.basicAck(deliveryTag, false);
         } catch (IOException ex) {
             logger.error("Error acknowledging message from {}: {}", this, ex);
-            counterGroup.incrementAndGet(COUNTER_EXCEPTION);
+            rabbitMQSinkCounter.incrementCounterExceptionCount();
         }
-        counterGroup.incrementAndGet(COUNTER_ACK);
+        rabbitMQSinkCounter.incrementAckCount();
     }
 
     private void rejectMessage(long deliveryTag) {
@@ -214,9 +204,9 @@ public class Consumer implements Runnable {
             channel.basicReject(deliveryTag, false);
         } catch (IOException ex) {
             logger.error("Error rejecting message from {}: {}", this, ex);
-            counterGroup.incrementAndGet(COUNTER_EXCEPTION);
+            rabbitMQSinkCounter.incrementCounterExceptionCount();
         }
-        counterGroup.incrementAndGet(COUNTER_REJECT);
+        rabbitMQSinkCounter.incrementCounterRejectCount();
     }
 
     private Event parseMessage(QueueingConsumer.Delivery delivery) {
