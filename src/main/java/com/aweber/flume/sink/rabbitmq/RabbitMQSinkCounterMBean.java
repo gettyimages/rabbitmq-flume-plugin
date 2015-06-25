@@ -2,27 +2,9 @@ package com.aweber.flume.sink.rabbitmq;
 
 
 public interface RabbitMQSinkCounterMBean {
-    long getConnectionCreatedCount();
-
-    long getConnectionClosedCount();
-
-    long getConnectionFailedCount();
-
-    long getBatchEmptyCount();
-
-    long getBatchUnderflowCount();
-
-    long getBatchCompleteCount();
-
-    long getEventDrainAttemptCount();
-
-    long getEventDrainSuccessCount();
-
     long getReceivedMessageCount();
 
-    long getMessagePublishedCount();
-
-    long getMessageEmptyCount();
+    long getPublishedMessageCount();
 
     long getChannelExceptionCount();
 

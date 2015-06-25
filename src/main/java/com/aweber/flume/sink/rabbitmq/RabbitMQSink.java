@@ -103,7 +103,7 @@ public class RabbitMQSink extends AbstractSink implements Configurable {
             } else {
                 rabbitMQSinkCounter.incrementReceivedMessageCount();
                 publishMessage(event);
-                rabbitMQSinkCounter.incrementMessagePublishedCount();
+                rabbitMQSinkCounter.incrementPublishedMessageCount();
             }
             transaction.commit();
 
